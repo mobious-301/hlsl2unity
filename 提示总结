@@ -5,3 +5,14 @@
 
 
 python 三引号 支持
+
+float4 _t1;
+TEXTURE2D(_t1); TEXTURE2D包含float4 _t1; 不能重复定义
+
+
+sample_level_pattern = r'(r\s+\S+)= (\s+\S+).SampleLevel\(\s+\S+s, (\s+\S+), [\s\S]\)' #性能问题
+sample_level_pattern = r'= (.*).SampleLevel\(.*?_s,(.*)?,.*?\)' 改用非贪婪模式
+
+
+
+ue4 shader 中大量if else  switch case无法 解析，通过 手动选择分支简化代码

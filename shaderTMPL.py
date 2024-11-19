@@ -1,6 +1,7 @@
 import re
 import os
-
+from cbfhlsl import *
+from cbIns import *
 class Texture2D:
     def __init__(self, type: str, name: str, register: str):
         self.type = type
@@ -128,9 +129,15 @@ Shader "MyShader/{name}"
         self.textures = []
         self.samplers = []
         self.cbuffers = []
+
+        self.psCb = []
+
+        # psCb,psCb1,psCbCon,psCbname = getcbIns()
         self.main_input = ""
         self.main_output = ""
         self.main_content = ""
+    def add_psCb(self, texture):
+        self.psCb.append(texture)
 
     def add_texture(self, texture: Texture2D):
         self.textures.append(texture)
@@ -148,10 +155,17 @@ Shader "MyShader/{name}"
 
     def generate_shader(self) -> str:
         properties_str = "\n".join([f"{tex.name} (\"{tex.name}\", 2D) = \"white\" {{}}" for tex in self.textures])
+
+        properties_str+="\n"
+        properties_str+="\n".join(shader_template.psCb[0])
         textures_str = "\n".join([f"TEXTURE2D({tex.name});" for tex in self.textures])
         samplers_str = "\n".join([f"SAMPLER({sampler.name});" for sampler in self.samplers])
+        samplers_str+="\n"
+        samplers_str+= "\n".join(shader_template.psCb[1])
 
-        frag_str = self.main_content
+        frag_str="\n".join(self.psCb[2])+"\n"
+
+        frag_str += self.main_content
 
         shader_str = self.shaderTMPLstr.format(
             name=self.name,
@@ -213,21 +227,15 @@ def parse_main_function(hlsl_code: str) -> dict:
     }
 
 def replace_sample_level(main_content: str, textures: list) -> str:
-    # sample_level_pattern = r'(r[\s\S]*?)= ([\s\S]*?)\.SampleLevel\(([^,]*?,)([^,]*?), [\s\S]*?\)'
-    # sample_level_pattern = r'(r[\s\S]*)= ([\s\S]*).SampleLevel\([\s\S]*s, ([\s\S]*), [\s\S]\)'
     sample_level_pattern = r'(r\s+\S+)= (\s+\S+).SampleLevel\(\s+\S+s, (\s+\S+), [\s\S]\)' #性能问题
     step_cmp_greater_equal_pattern = r'(r[\s\S]*?)= cmp\(([\s\S]*?) [=]*>[=]* ([\s\S]*?)\);'
     step_cmp_less_equal_pattern = r'(r[\s\S]*?)= cmp\(([\s\S]*?) [=]*<[=]* ([\s\S]*?)\);'
 
-    # Create a mapping from old texture names to new ones
-    # texture_map = {texture.name.replace("_", ""): f"_t{i}" for i, texture in enumerate(textures)}
 
-    # Replace SampleLevel calls with SAMPLE_TEXTURE2D and use 'smp' as the sampler
-    # def sample_level_replacer(match):
-    #     var_name = match.group(2)
-    #     new_var_name = texture_map.get(var_name, var_name)
-        # return 
     sample_level_pattern = r'= (.*).SampleLevel\(.*?_s,(.*)?,.*?\)'
+    sampleload = r'= (.*)\.Load'
+
+    # =.*\.load
 
     main_content = re.sub(sample_level_pattern, rf'= SAMPLE_TEXTURE2D(_\1, smp, \2)', main_content)
 
@@ -235,6 +243,7 @@ def replace_sample_level(main_content: str, textures: list) -> str:
     main_content = re.sub(step_cmp_greater_equal_pattern, rf'\1 = step(\3 , \2)-1;', main_content)
     # Replace cmp(x <= y) with step(x, y) - 1
     main_content = re.sub(step_cmp_less_equal_pattern, rf'\1 = step(\2 , \3)-1;', main_content)
+    main_content =  re.sub(sampleload, rf'= _\1.Load', main_content)
 
     return main_content
 
@@ -288,6 +297,15 @@ else:
         for cbuffer in cbuffers:
             shader_template.add_cbuffer(cbuffer)
 
+            
+        psCb,psCb1,psCbCon,psCbname = getcbIns()
+        shader_template.add_psCb(psCb)
+        shader_template.add_psCb(psCb1)
+        shader_template.add_psCb(psCbCon)
+        shader_template.add_psCb(psCbname)
+        print("sva")
+        print(shader_template.psCb[0])
+
         # 设置 main 函数
         if parsed_main:
             main_content = replace_sample_level(parsed_main['main_content'], textures)
@@ -301,7 +319,7 @@ else:
         generated_shader = shader_template.generate_shader()
 
         # 输出生成的 Shader 字符串
-        print(generated_shader)
+        # print(generated_shader)
 
 
 
