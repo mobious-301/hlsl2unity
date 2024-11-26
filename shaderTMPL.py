@@ -323,7 +323,8 @@ else:
 
 
 
-        file_path='./outputShaders/Octopath_Traveler2_Shader.shader'
+        # file_path='./outputShaders/Octopath_Traveler2_Shader.shader'
+        file_path='./a-2 case1'
 
 
                 # 获取目录名
